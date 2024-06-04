@@ -1,16 +1,21 @@
 use crate::errors::error::Error;
 use crate::database::db::AppState;
-use crate::services::service_auth::{ create_access_token, create_refresh_token };
+use crate::services::service_auth::{
+    create_access_token,
+    create_refresh_token,
+    parse_cookies_from_request,
+};
 use crate::models::model_user::{ User, LoginPayload };
-use crate::services::service_user::login;
+use crate::services::service_user::{ login, logout };
 use std::sync::Arc;
 use uuid::Uuid;
 
 use axum::{
     extract::{ Path, Query, State },
-    http::{ StatusCode, HeaderMap, header },
+    http::{ StatusCode, HeaderMap, header, Request },
     response::{ IntoResponse, Response },
     Json,
+    body::Body,
 };
 
 // @route POST /auth/login
@@ -22,7 +27,7 @@ pub async fn login_user(
 ) -> Result<impl IntoResponse, Error> {
     let user = login(&payload, &app_state.db).await?;
 
-    let access_token = create_access_token(&user.id).await;
+    let access_token = create_access_token(&user.id);
     let refresh_token = create_refresh_token(&user.id).await;
 
     match access_token {
@@ -52,16 +57,18 @@ pub async fn login_user(
     }
 }
 
-// @route POST /auth/logout
+// @route GET /auth/logout
 // @desc Logout user
 // @access Private
 pub async fn logout_user(
     State(app_state): State<Arc<AppState>>,
-    Json(payload): Json<LoginPayload>
+    request: Request<Body>
 ) -> Result<impl IntoResponse, Error> {
-    let user = login(&payload, &app_state.db).await?;
-
     let mut headers = HeaderMap::new();
+
+    let cookies = parse_cookies_from_request(&request)?;
+
+    logout(cookies.refresh_token, &app_state.db).await?;
 
     headers.append(
         header::SET_COOKIE,
@@ -73,5 +80,5 @@ pub async fn logout_user(
         "refresh_token=; Secure; HttpOnly; Path=/; SameSite=Strict; Max-Age=0".parse().unwrap()
     );
 
-    Ok((StatusCode::OK, headers, Json(user)))
+    Ok((StatusCode::NO_CONTENT, headers))
 }

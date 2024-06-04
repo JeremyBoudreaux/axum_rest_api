@@ -25,12 +25,17 @@ pub struct Claims {
     iat: usize,
 }
 
-pub async fn create_access_token(user_id: &Uuid) -> Result<String, jsonwebtoken::errors::Error> {
+pub struct JwtTokens {
+    pub access_token: String,
+    pub refresh_token: String,
+}
+// Create short lived access token
+pub fn create_access_token(user_id: &Uuid) -> Result<String, jsonwebtoken::errors::Error> {
     dotenv().ok();
 
     let mut now = Utc::now();
     let iat = now.timestamp();
-    let expires_at = now + Duration::minutes(1);
+    let expires_at = now + Duration::hours(1);
 
     let my_claims = Claims {
         sub: user_id.to_owned(),
@@ -47,12 +52,13 @@ pub async fn create_access_token(user_id: &Uuid) -> Result<String, jsonwebtoken:
     Ok(token)
 }
 
+// Create long lived refresh token
 pub async fn create_refresh_token(user_id: &Uuid) -> Result<String, jsonwebtoken::errors::Error> {
     dotenv().ok();
 
     let mut now = Utc::now();
     let iat = now.timestamp();
-    let expires_at = now + Duration::minutes(5);
+    let expires_at = now + Duration::days(30);
 
     let my_claims = Claims {
         sub: user_id.to_owned(),
@@ -71,6 +77,7 @@ pub async fn create_refresh_token(user_id: &Uuid) -> Result<String, jsonwebtoken
     Ok(token)
 }
 
+// Save refresh token to db
 pub async fn save_token_to_db(token: &str, user_id: &Uuid) -> Result<(), Error> {
     dotenv().ok();
 
@@ -88,6 +95,7 @@ pub async fn save_token_to_db(token: &str, user_id: &Uuid) -> Result<(), Error> 
     }
 }
 
+// Verify access token
 pub fn verify_access_token(token: &str) -> Result<Claims, Error> {
     dotenv().ok();
 
@@ -103,6 +111,7 @@ pub fn verify_access_token(token: &str) -> Result<Claims, Error> {
     }
 }
 
+// Verify refresh token
 pub async fn verify_refresh_token(token: &str) -> Result<Claims, Error> {
     dotenv().ok();
 
@@ -133,11 +142,8 @@ pub async fn verify_refresh_token(token: &str) -> Result<Claims, Error> {
     }
 }
 
-pub async fn auth(
-    State(app_state): State<Arc<AppState>>,
-    mut req: Request<Body>,
-    next: Next
-) -> Result<Response<Body>, Error> {
+// Parse the cookies from the request and return the access and refresh tokens
+pub fn parse_cookies_from_request(req: &Request<Body>) -> Result<JwtTokens, Error> {
     let cookies = req
         .headers()
         .get(header::COOKIE)
@@ -161,10 +167,29 @@ pub async fn auth(
         .get("refresh_token")
         .ok_or_else(|| Error::Unauthorized("No refresh token provided".to_string()))?;
 
-    let token_data = verify_access_token(access_token)?;
+    Ok(JwtTokens {
+        access_token: access_token.to_string(),
+        refresh_token: refresh_token.to_string(),
+    })
+}
+
+// Middleware to authenticate user on each protected route call
+pub async fn auth(
+    State(app_state): State<Arc<AppState>>,
+    mut req: Request<Body>,
+    next: Next
+) -> Result<Response<Body>, Error> {
+    let tokens = parse_cookies_from_request(&req)?;
+
+    // Check if access token is valid
+    // then check the expiration date
+    // if expired, check if refresh token is valid
+    // then check the expiration date
+    // if expired, return unauthorized
+    let token_data = verify_access_token(&tokens.access_token)?;
     if token_data.exp > (Utc::now().timestamp() as usize) {
         let user = fetch_user_by_id(token_data.sub.clone(), &app_state.db).await?;
-        let new_access_token = create_access_token(&user.id).await.map_err(|e|
+        let new_access_token = create_access_token(&user.id).map_err(|e|
             Error::Unauthorized(e.to_string())
         )?;
 
@@ -180,10 +205,10 @@ pub async fn auth(
         return Ok(next.run(req).await);
     }
 
-    let token_data = verify_refresh_token(refresh_token).await?;
+    let token_data = verify_refresh_token(&tokens.refresh_token).await?;
     if token_data.exp > (Utc::now().timestamp() as usize) {
         let user = fetch_user_by_id(token_data.sub.clone(), &app_state.db).await?;
-        let new_access_token = create_access_token(&user.id).await.map_err(|e|
+        let new_access_token = create_access_token(&user.id).map_err(|e|
             Error::Unauthorized(e.to_string())
         )?;
 

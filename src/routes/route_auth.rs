@@ -17,7 +17,6 @@ use axum::{
 pub fn auth_route(app_state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/auth/login", post(login_user))
-        .route("/api/auth/logout", post(logout_user))
-        .route_layer(middleware::from_fn_with_state(app_state.clone(), auth))
+        .route("/api/auth/logout", get(logout_user))
         .with_state(app_state)
 }

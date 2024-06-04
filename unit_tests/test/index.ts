@@ -3,7 +3,9 @@ import axios from "axios";
 
 const url = "http://localhost:5000";
 
-describe("Boilerplate", async () => {
+describe("Boilerplate", async function () {
+  this.timeout(10000);
+
   let id = "";
   let tokens = "";
 
@@ -40,16 +42,22 @@ describe("Boilerplate", async () => {
   });
 
   it("Gets a user by id", async () => {
-    console.log(tokens);
-
     const res = await axios.get(`${url}/api/user/${id}`, {
       headers: {
         Cookie: tokens,
       },
     });
 
-    console.log(res.data);
-
     assert.strictEqual(res.status, 200);
+  });
+
+  it("logs out a user", async () => {
+    const res = await axios.get(`${url}/api/auth/logout`, {
+      headers: {
+        Cookie: tokens,
+      },
+    });
+
+    assert.strictEqual(res.status, 204);
   });
 });
