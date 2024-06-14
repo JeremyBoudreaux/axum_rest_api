@@ -5,15 +5,14 @@ use crate::services::service_auth::{
     create_refresh_token,
     parse_cookies_from_request,
 };
-use crate::models::model_user::{ User, LoginPayload };
+use crate::models::model_user::LoginPayload;
 use crate::services::service_user::{ login, logout };
 use std::sync::Arc;
-use uuid::Uuid;
 
 use axum::{
-    extract::{ Path, Query, State },
+    extract::State,
     http::{ StatusCode, HeaderMap, header, Request },
-    response::{ IntoResponse, Response },
+    response::IntoResponse,
     Json,
     body::Body,
 };

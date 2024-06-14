@@ -1,20 +1,18 @@
 use crate::database::db::AppState;
 use crate::errors::error::Error;
 use crate::services::service_user::fetch_user_by_id;
-use serde::{ Serialize, Deserialize };
+use serde::{ Deserialize, Serialize };
 use chrono::{ Utc, Duration };
 use std::sync::Arc;
 use uuid::Uuid;
 use jsonwebtoken::{ encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey };
 use dotenv::dotenv;
-use axum_extra::extract::cookie::CookieJar;
 
 use axum::{
     middleware::Next,
-    extract::{ Path, Query, State },
-    http::{ StatusCode, HeaderMap, header, Request },
-    response::{ IntoResponse, Response },
-    Json,
+    extract::State,
+    http::{ HeaderMap, header, Request },
+    response::Response,
     body::Body,
 };
 
@@ -33,7 +31,7 @@ pub struct JwtTokens {
 pub fn create_access_token(user_id: &Uuid) -> Result<String, jsonwebtoken::errors::Error> {
     dotenv().ok();
 
-    let mut now = Utc::now();
+    let now = Utc::now();
     let iat = now.timestamp();
     let expires_at = now + Duration::hours(1);
 
@@ -56,7 +54,7 @@ pub fn create_access_token(user_id: &Uuid) -> Result<String, jsonwebtoken::error
 pub async fn create_refresh_token(user_id: &Uuid) -> Result<String, jsonwebtoken::errors::Error> {
     dotenv().ok();
 
-    let mut now = Utc::now();
+    let now = Utc::now();
     let iat = now.timestamp();
     let expires_at = now + Duration::days(30);
 
@@ -126,7 +124,7 @@ pub async fn verify_refresh_token(token: &str) -> Result<Claims, Error> {
         .fetch_one(&db).await;
 
     match is_valid_token {
-        Ok((user_id, _)) => {
+        Ok((_user_id, _)) => {
             let token_data = decode::<Claims>(
                 token,
                 &DecodingKey::from_secret(std::env::var("JWT_SECRET").unwrap().as_ref()),

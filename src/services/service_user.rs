@@ -1,10 +1,8 @@
 use crate::errors::error::Error;
-use crate::database::db::AppState;
-use crate::models::model_user::{ User, CreateUserPayload, LoginPayload, UpdateUserPayload };
-use sqlx::{ FromRow, Postgres, Transaction, Pool };
-use std::sync::Arc;
+use crate::models::model_user::{ User, CreateUserPayload, LoginPayload };
+use sqlx::{ Postgres, Pool };
 use uuid::Uuid;
-use bcrypt::{ DEFAULT_COST, hash, verify };
+use bcrypt::verify;
 
 // Logs the user in
 pub async fn login(payload: &LoginPayload, app_state: &Pool<Postgres>) -> Result<User, Error> {

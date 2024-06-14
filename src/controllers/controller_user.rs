@@ -1,16 +1,11 @@
 use crate::errors::error::Error;
 use crate::database::db::AppState;
-use crate::models::model_user::{ User, CreateUserPayload, UpdateUserPayload };
-use crate::services::service_user::{ fetch_user_by_id };
+use crate::models::model_user::{ User, CreateUserPayload };
+use crate::services::service_user::fetch_user_by_id;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use axum::{
-    extract::{ Path, Query, State },
-    http::StatusCode,
-    response::{ IntoResponse, Response },
-    Json,
-};
+use axum::{ extract::{ Path, State }, http::StatusCode, Json };
 
 // @route POST /users
 // @desc Create a new user

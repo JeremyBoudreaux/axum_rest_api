@@ -2,11 +2,10 @@ extern crate bcrypt;
 
 use crate::errors::error::Error;
 use serde::{ Deserialize, Serialize };
-use sqlx::{ FromRow, Postgres, Transaction, Pool };
+use sqlx::{ FromRow, Postgres, Transaction };
 use crate::services::service_user::validate;
 use uuid::Uuid;
-use bcrypt::{ DEFAULT_COST, hash, verify };
-use crate::database::db::AppState;
+use bcrypt::{ DEFAULT_COST, hash };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateUserPayload {
